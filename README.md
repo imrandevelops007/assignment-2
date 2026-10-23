@@ -89,7 +89,7 @@ pytest --cov --cov-report=term-missing
 
 **Scope.** Only `summarize_batch_registrations` (lines 62–89) and `enroll_student`
 (lines 92–117) are targets. The report measures the whole file, so it still lists
-lines 25, 28, 31, 50 and 57–59. Those are inside `can_register` and
+lines 28, 31 and 50. Those are inside `can_register` and
 `calculate_registration_fee` (lines 15–59), which the handout excludes from this
 assignment's coverage target.
 
@@ -108,15 +108,16 @@ How the gaps were closed:
 2. Adding `test_enroll_student_returns_false_when_prerequisite_not_met` covered
    them, leaving **0 missing statements** in both target functions.
 
-Final statement-only report:
+Final statement-only report (full suite):
 
 ```
 (.venv) PS E:\assignment-2> pytest --cov --cov-report=term-missing --cov-config=.coveragerc-statements
 Name                  Stmts   Miss  Cover   Missing
 ---------------------------------------------------
-src\registration.py      36      7    81%   25, 28, 31, 50, 57-59
+src\registration.py      36      3    92%   28, 31, 50
 ---------------------------------------------------
-TOTAL                    36      7    81%
+TOTAL                    36      3    92%
+======================= 7 passed in 0.17s ========================
 ```
 
 No line from 62 onward appears under Missing.
@@ -128,18 +129,19 @@ the `if` inside the loop had never been False, so no request had ever been rejec
 and skipped. Every *line* had run, but one *decision outcome* had not. Adding
 `test_batch_skips_rejected_request_without_counting_or_charging_it` closed it.
 
-Final branch-coverage report:
+Final branch-coverage report (full suite):
 
 ```
 (.venv) PS E:\assignment-2> pytest --cov --cov-branch --cov-report=term-missing
 Name                  Stmts   Miss Branch BrPart  Cover   Missing
 -----------------------------------------------------------------
-src\registration.py      36      7     18      5    78%   25, 28, 31, 50, 57-59
+src\registration.py      36      3     18      3    89%   28, 31, 50
 -----------------------------------------------------------------
-TOTAL                    36      7     18      5    78%
+TOTAL                    36      3     18      3    89%
+======================= 7 passed in 0.17s ========================
 ```
 
-No line or `a->b` arc from 62 onward appears under Missing. The 5 remaining
+No line or `a->b` arc from 62 onward appears under Missing. The 3 remaining
 partial branches are all inside `can_register` / `calculate_registration_fee`.
 
 ### Which tests exercise each decision outcome
@@ -238,3 +240,57 @@ not catch an `enroll_student` that returned `True` but forgot to notify the
 student, sent the wrong fee, or sent *both* messages. Behavior verification alone
 would not catch a wrong return value. Each test checks the result and the
 interaction.
+
+
+
+---
+
+## Section 7: Organizing and Running the Test Suite
+
+### 7(a) Markers
+
+Every test carries `unit` (applied to the whole file with `pytestmark`) plus at
+least one of the markers registered in `pyproject.toml`:
+
+| Marker | Tests |
+|---|---|
+| `unit` | all 7 |
+| `positive` | `test_batch_with_one_approved_request_counts_it_and_sums_its_fee`, `test_enroll_student_returns_true_when_registration_allowed`, `test_batch_total_fees_accumulates_across_multiple_approved_requests` |
+| `negative` | `test_enroll_student_returns_false_when_prerequisite_not_met`, `test_batch_skips_rejected_request_without_counting_or_charging_it`, `test_batch_with_only_rejected_requests_returns_zero_count_and_zero_fees` |
+| `boundary` | `test_empty_batch_returns_zero_count_and_zero_fees` (a batch of size 0) |
+
+### Commands
+
+Run from the project root, with the virtual environment activated
+(`pip install pytest pytest-cov`):
+
+```
+pytest                                                                   # full suite
+pytest -v                                                                # one line per test
+pytest --cov --cov-report=term-missing --cov-config=.coveragerc-statements   # statement-only coverage (4a)
+pytest --cov --cov-branch --cov-report=term-missing                      # statement + branch coverage (4b)
+pytest -m positive                                                       # positive tests only
+pytest -m negative                                                       # negative tests only
+pytest -m "not boundary"                                                 # everything except the boundary test
+```
+
+### 7(b) Evidence that the full suite passes
+
+```
+(.venv) PS E:\assignment-2> pytest
+====================== test session starts =======================
+platform win32 -- Python 3.13.5, pytest-9.1.1, pluggy-1.7.0
+rootdir: E:\assignment-2
+configfile: pyproject.toml
+testpaths: tests
+plugins: cov-7.1.0
+collected 7 items
+
+tests\test_registration.py .......                          [100%]
+
+======================= 7 passed in 0.07s ========================
+```
+
+The tests are independent: `mock_notifier` is function-scoped, so every test gets
+a fresh Mock with no recorded calls, and the functions under test keep no state
+between calls.
