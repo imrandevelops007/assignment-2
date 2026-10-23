@@ -47,14 +47,28 @@ def test_batch_with_one_approved_request_counts_it_and_sums_its_fee():
 
 @pytest.mark.positive
 def test_enroll_student_returns_true_when_registration_allowed(mock_notifier):
-    assert enroll_student(9, 3, True, mock_notifier) is True
+    # Section 6(b). 9 + 3 = 12 credits -> fee $1,200.
+    result = enroll_student(9, 3, True, mock_notifier)
 
+    # State verification: the function's own result.
+    assert result is True
 
+    # Behavior verification: how it talked to the collaborator.
+    mock_notifier.send_confirmation.assert_called_once_with(1200.0)
+    mock_notifier.send_rejection.assert_not_called()
 
 
 @pytest.mark.negative
 def test_enroll_student_returns_false_when_prerequisite_not_met(mock_notifier):
-    assert enroll_student(9, 3, False, mock_notifier) is False
+    # Section 6(c). Prerequisite missing -> registration rejected.
+    result = enroll_student(9, 3, False, mock_notifier)
+
+    # State verification
+    assert result is False
+
+    # Behavior verification: rejection sent once, with no arguments; no fee sent.
+    mock_notifier.send_rejection.assert_called_once_with()
+    mock_notifier.send_confirmation.assert_not_called()
 
 
 

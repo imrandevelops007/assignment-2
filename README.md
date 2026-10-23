@@ -206,3 +206,35 @@ one use), so All-Defs would accept it without ever testing accumulation. Only
 `total_fees = 0.0 + calculate_registration_fee(total_credits)`, every other test
 in the suite would still pass, and statement and branch coverage would still be
 100%. Only this test would fail, returning 1350.0 instead of 2550.0.
+
+
+
+---
+
+## Section 6: Test Doubles for the Notifier Collaborator
+
+`enroll_student()` receives its `notifier` as a parameter instead of creating
+it. This is a **seam**: tests pass in a test double rather than a real email or
+push-notification service.
+
+### 6(a) Fixture
+
+`mock_notifier` in `tests/conftest.py` returns a plain `unittest.mock.Mock()`.
+It acts as a **stub** (it accepts `send_confirmation(fee)` and
+`send_rejection()` without doing anything real) and as a **spy** (it records
+every call, so the test can inspect them afterwards). The fixture is
+function-scoped, so each test gets a fresh Mock with no recorded calls carried
+over from other tests.
+
+### 6(b) and 6(c) Positive and negative tests
+
+| Test | State verification | Behavior verification |
+|---|---|---|
+| `test_enroll_student_returns_true_when_registration_allowed` (positive, input `(9, 3, True)`) | returns `True` | `send_confirmation` called **once with `1200.0`** (12 credits × $100); `send_rejection` **never called** |
+| `test_enroll_student_returns_false_when_prerequisite_not_met` (negative, input `(9, 3, False)`) | returns `False` | `send_rejection` called **once with no arguments**; `send_confirmation` **never called** |
+
+**Why both kinds of verification are needed:** state verification alone would
+not catch an `enroll_student` that returned `True` but forgot to notify the
+student, sent the wrong fee, or sent *both* messages. Behavior verification alone
+would not catch a wrong return value. Each test checks the result and the
+interaction.
