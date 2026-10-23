@@ -152,3 +152,57 @@ partial branches are all inside `can_register` / `calculate_registration_fee`.
 | | False (84→83) | `test_batch_skips_rejected_request_without_counting_or_charging_it`, since (9, 3, False) is rejected and the loop moves on |
 | `if can_register(...)`, line 110 | True (110→111) | `test_enroll_student_returns_true_when_registration_allowed`, since (9, 3, True) is enrolled |
 | | False (110→116) | `test_enroll_student_returns_false_when_prerequisite_not_met`, since (9, 3, False) is rejected |
+
+
+
+---
+
+## Section 5: Data-Flow Testing of `total_fees`
+
+Notation follows the Week 6 lecture (`sum_positive()` example): D = definition,
+c-use = value read in a computation or output, p-use = value read in a predicate.
+
+### 5(a) Definitions and uses
+
+| ID | Line | Statement | Event |
+|---|---|---|---|
+| D1 | 81 | `total_fees = 0.0` | definition (initialization before the loop) |
+| U1 | 87 | `total_fees = total_fees + calculate_registration_fee(total_credits)` | **c-use**: the old value is read on the right-hand side |
+| D2 | 87 | (same statement) | **definition**: the new sum is stored |
+| U2 | 89 | `return approved_count, total_fees` | **c-use**: the value is returned |
+
+Line 87 contains both a use and a definition: the old value of `total_fees` is
+read first, then a new value is written. `total_fees` has **no p-uses**: it is
+never read in a predicate. The `if` on line 84 decides *whether* line 87 runs,
+but it does not read `total_fees`.
+
+### 5(b) DU-pair table
+
+| # | Def | Use | When the def-clear path exists | Exercised by |
+|---|---|---|---|---|
+| 1 | D1 (81) | U1 (87) | the first approved request in the batch reads the initial 0.0 | `test_batch_with_one_approved_request_counts_it_and_sums_its_fee` |
+| 2 | D1 (81) | U2 (89) | line 87 never runs: an empty batch, or every request rejected | `test_empty_batch_returns_zero_count_and_zero_fees`, `test_batch_with_only_rejected_requests_returns_zero_count_and_zero_fees` |
+| 3 | D2 (87) | U1 (87) | **loop-carried**: a later approved request reads the total written by an earlier one | `test_batch_total_fees_accumulates_across_multiple_approved_requests` |
+| 4 | D2 (87) | U2 (89) | at least one request is approved, then the loop exits | `test_batch_with_one_approved_request_counts_it_and_sums_its_fee`, `test_batch_skips_rejected_request_without_counting_or_charging_it` (here D2 also survives a skipped, rejected iteration before reaching the return) |
+
+All four pairs are exercised, so the suite satisfies **All-Uses** for `total_fees`.
+
+### 5(c) The loop-carried pair (#3)
+
+`test_batch_total_fees_accumulates_across_multiple_approved_requests` submits two
+approved requests ($1,200 and $1,350) and asserts `total_fees == 2550.0`. On the
+second approval, line 87 reads the value that line 87 itself wrote on the first
+approval, so the def D2 reaches the use U1 across a loop iteration.
+
+**Why zero or one approved request cannot exercise this pair:** with zero
+approvals, line 87 never runs, so D2 never happens. With exactly one approval,
+line 87 runs once and reads D1 (0.0), and the D2 it writes is read only by the
+`return`, never by a second execution of line 87. A suite with one approved batch
+plus an empty batch already satisfies **All-Defs** (D1 and D2 each reach at least
+one use), so All-Defs would accept it without ever testing accumulation. Only
+**All-Uses**, which requires every DU pair, forces the two-approval test.
+
+**Why this matters:** if line 87 were mistakenly written as
+`total_fees = 0.0 + calculate_registration_fee(total_credits)`, every other test
+in the suite would still pass, and statement and branch coverage would still be
+100%. Only this test would fail, returning 1350.0 instead of 2550.0.

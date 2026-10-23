@@ -69,3 +69,24 @@ def test_batch_skips_rejected_request_without_counting_or_charging_it():
 @pytest.mark.boundary
 def test_empty_batch_returns_zero_count_and_zero_fees():
     assert summarize_batch_registrations([]) == (0, 0.0)
+
+
+
+
+
+# Section 5 - Data-flow testing of total_fees
+
+
+@pytest.mark.negative
+def test_batch_with_only_rejected_requests_returns_zero_count_and_zero_fees():
+    requests = [(9, 3, False), (16, 1, True)]   # prerequisite missing; current > 15
+    assert summarize_batch_registrations(requests) == (0, 0.0)
+
+
+@pytest.mark.positive
+def test_batch_total_fees_accumulates_across_multiple_approved_requests():
+    requests = [
+        (9, 3, True),    # 12 credits -> $1,200
+        (10, 4, True),   # 14 credits -> $1,200 + 2 * $75 = $1,350
+    ]
+    assert summarize_batch_registrations(requests) == (2, 2550.0)
