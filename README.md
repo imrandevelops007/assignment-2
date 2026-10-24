@@ -87,11 +87,10 @@ pytest --cov --cov-report=term-missing
 
 ## Section 4: Statement and Branch Coverage
 
-**Scope.** Only `summarize_batch_registrations` (lines 62–89) and `enroll_student`
-(lines 92–117) are targets. The report measures the whole file, so it still lists
-lines 28, 31 and 50. Those are inside `can_register` and
-`calculate_registration_fee` (lines 15–59), which the handout excludes from this
-assignment's coverage target.
+**Scope.** Only `summarize_batch_registrations` and `enroll_student` are targets.
+The report measures the whole file, so it still lists lines 28, 31 and 50. Those
+are inside `can_register` and `calculate_registration_fee`, which the handout
+excludes from this assignment's coverage target.
 
 **Why a separate config for statement-only coverage.** `pyproject.toml` sets
 `branch = true` under `[tool.coverage.run]`, so dropping `--cov-branch` still
@@ -120,7 +119,7 @@ TOTAL                    36      3    92%
 ======================= 7 passed in 0.17s ========================
 ```
 
-No line from 62 onward appears under Missing.
+No line inside the two target functions appears under Missing.
 
 ### 4(b) Branch coverage
 
@@ -141,7 +140,7 @@ TOTAL                    36      3     18      3    89%
 ======================= 7 passed in 0.17s ========================
 ```
 
-No line or `a->b` arc from 62 onward appears under Missing. The 3 remaining
+No line or `a->b` arc inside the two target functions appears under Missing. The 3 remaining
 partial branches are all inside `can_register` / `calculate_registration_fee`.
 
 ### Which tests exercise each decision outcome
@@ -160,9 +159,6 @@ partial branches are all inside `can_register` / `calculate_registration_fee`.
 ---
 
 ## Section 5: Data-Flow Testing of `total_fees`
-
-Notation follows the Week 6 lecture (`sum_positive()` example): D = definition,
-c-use = value read in a computation or output, p-use = value read in a predicate.
 
 ### 5(a) Definitions and uses
 
